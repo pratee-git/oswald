@@ -1,0 +1,9 @@
+# OSWALD update job (triggered by oswald-update.timer)
+[Unit]
+Description=OSWALD upstream sync + rebuild
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/oswald/deploy/oswald-update.sh
+StandardOutput=append:%h/projects/oswald/update.log
+StandardError=append:%h/projects/oswald/update.log

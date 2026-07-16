@@ -1,6 +1,6 @@
 {
-  "name": "pob.cool - Path of Building Web",
-  "short_name": "pob.cool",
+  "name": "OSWALD - Path of Building PoE2",
+  "short_name": "OSWALD",
   "description": "A web version of Path of Building character planner for Path of Exile",
   "start_url": "/",
   "display": "standalone",

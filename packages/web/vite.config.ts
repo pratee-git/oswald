@@ -8,7 +8,7 @@ const rootDir = path.resolve(__dirname, "../..");
 const packerR2Dir = path.resolve(__dirname, "../packer/r2");
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode, isSsrBuild }) => ({
   server: {
     host: true,
     proxy: {
@@ -36,14 +36,18 @@ export default defineConfig(({ mode }) => ({
   define: {
     APP_VERSION: JSON.stringify(process.env.npm_package_version),
     __VERSION_URL__: JSON.stringify(
-      mode === "development" && process.env.POB_COOL_ASSET === undefined
-        ? `/@fs/${rootDir}/version.json`
-        : "https://asset.pob.cool/version.json",
+      // oswald: self-host override — serve packed assets from same origin
+      process.env.OSWALD_ASSET_PREFIX !== undefined
+        ? `${process.env.OSWALD_ASSET_PREFIX}/version.json`
+        : mode === "development" && process.env.POB_COOL_ASSET === undefined
+          ? `/@fs/${rootDir}/version.json`
+          : "https://asset.pob.cool/version.json",
     ),
     __ASSET_PREFIX__: JSON.stringify(
-      mode === "development" && process.env.POB_COOL_ASSET === undefined
-        ? `/@fs/${packerR2Dir}`
-        : "https://asset.pob.cool",
+      process.env.OSWALD_ASSET_PREFIX ??
+        (mode === "development" && process.env.POB_COOL_ASSET === undefined
+          ? `/@fs/${packerR2Dir}`
+          : "https://asset.pob.cool"),
     ),
   },
   worker: {
@@ -58,8 +62,13 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     reactRouter(),
     tailwindcss(),
-    viteStaticCopy({
-      targets: [{ src: normalizePath(path.join(rootDir, "packages/driver/dist/*")), dest: "dist/" }],
-    }),
+    // oswald: copy only into client build — SPA mode deletes build/server mid-build (ENOENT race)
+    ...(isSsrBuild
+      ? []
+      : [
+          viteStaticCopy({
+            targets: [{ src: normalizePath(path.join(rootDir, "packages/driver/dist/*")), dest: "dist/" }],
+          }),
+        ]),
   ],
 }));

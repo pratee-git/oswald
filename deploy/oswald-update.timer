@@ -1,0 +1,10 @@
+# OSWALD weekly upstream sync (install alongside oswald-update.service)
+[Unit]
+Description=OSWALD weekly upstream sync
+
+[Timer]
+OnCalendar=Mon 06:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

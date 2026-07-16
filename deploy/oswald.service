@@ -1,0 +1,12 @@
+# OSWALD — PoB2 web app (install: cp to ~/.config/systemd/user/ && systemctl --user enable --now oswald)
+[Unit]
+Description=OSWALD - Path of Building PoE2 web app
+After=network.target
+
+[Service]
+WorkingDirectory=%h/projects/oswald
+ExecStart=%h/.local/share/mise/installs/node/24.18.0/bin/node server.mjs 8090
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

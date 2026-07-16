@@ -50,11 +50,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="pob.cool" />
+        <meta name="apple-mobile-web-app-title" content="OSWALD" />
         <meta name="theme-color" content="#1a1a1a" />
         <link rel="manifest" href="/manifest.json" />
         <title>pob.cool</title>
-        <meta property="og:title" content="pob.cool" />
+        <meta property="og:title" content="OSWALD" />
         <meta property="og:description" content="A web version of Path of Building" />
         <meta property="og:image" content="https://pob.cool/favicon.png" />
         <meta property="og:url" content="https://pob.cool" />
