@@ -78,6 +78,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 export function HydrateFallback() {}
 
 export default function Root() {
+  // oswald: Auth0 throws on insecure origins (e.g. http://<tailnet-ip>) and kills the app —
+  // skip it there; cloud save is unused on self-host, local saves are unaffected
+  if (!window.isSecureContext) return <Outlet />;
   return (
     <Auth0Provider
       domain="pob-web.us.auth0.com"

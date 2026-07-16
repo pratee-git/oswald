@@ -66,9 +66,25 @@ function resolveSafe(base, urlPath) {
   return file.startsWith(base) ? file : null;
 }
 
+// The app requires a secure context (OPFS build storage, Auth0) — bounce plain-HTTP
+// page loads (e.g. http://<tailnet-ip>:8090) to the HTTPS front door. Tailscale-proxied
+// requests carry x-forwarded-proto=https and pass through; localhost stays direct.
+const HTTPS_URL = process.env.OSWALD_HTTPS_URL ?? "https://xolo.tail5ebed4.ts.net";
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const p = url.pathname;
+
+  const host = (req.headers.host ?? "").split(":")[0];
+  if (
+    HTTPS_URL &&
+    req.headers["x-forwarded-proto"] !== "https" &&
+    host !== "localhost" &&
+    host !== "127.0.0.1" &&
+    (req.headers.accept ?? "").includes("text/html")
+  ) {
+    return send(res, 302, "redirecting to secure origin", { Location: HTTPS_URL + req.url });
+  }
 
   if (p === "/api/fetch" && req.method === "POST") return apiFetch(req, res);
   if (p.startsWith("/api/")) return send(res, 404, "not found"); // kv/cloud save not supported
