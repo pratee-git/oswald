@@ -1,10 +1,11 @@
 // OSWALD self-host server — static SPA + packed assets + CORS proxy.
 // Replaces Cloudflare Pages/Workers for a private (tailnet) instance.
 // Usage: node server.mjs [port]   (default 8090)
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { deflateSync } from "node:zlib";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIR = path.join(root, "packages/web/build/client");
@@ -71,6 +72,33 @@ function resolveSafe(base, urlPath) {
 // requests carry x-forwarded-proto=https and pass through; localhost stays direct.
 const HTTPS_URL = process.env.OSWALD_HTTPS_URL ?? "https://xolo.tail5ebed4.ts.net";
 
+// ponytail: one-way desktop→web build sync — open a link, then save in-app (OPFS).
+// Write-back to desktop needs an upload endpoint; add only if actually wanted.
+const BUILDS_DIR =
+  process.env.OSWALD_BUILDS_DIR ?? path.join(process.env.HOME, "PathOfBuildingCommunity-PoE2-Portable/Builds");
+
+function buildsPage(res) {
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const items = readdirSync(BUILDS_DIR, { recursive: true })
+    .filter(f => f.endsWith(".xml"))
+    .map(f => ({ f, mtime: statSync(path.join(BUILDS_DIR, f)).mtime }))
+    .sort((a, b) => b.mtime - a.mtime)
+    .map(({ f, mtime }) => {
+      const code = deflateSync(readFileSync(path.join(BUILDS_DIR, f)))
+        .toString("base64")
+        .replaceAll("+", "-")
+        .replaceAll("/", "_");
+      const name = esc(f.replace(/\.xml$/, ""));
+      return `<li><a href="/poe2#build=${code}">${name}</a> <small>${mtime.toISOString().slice(0, 10)}</small></li>`;
+    });
+  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSWALD — Desktop Builds</title>
+<body style="font-family:sans-serif;background:#121212;color:#eee;padding:1rem">
+<h1>Desktop Builds</h1><p>PoB2 desktop บน Xolo — เปิดลิงก์แล้วกด Save ในแอปเพื่อเก็บลงเครื่องนี้</p>
+<ul style="line-height:2">${items.join("")}</ul>`;
+  send(res, 200, html, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://localhost");
   const p = url.pathname;
@@ -84,6 +112,14 @@ const server = http.createServer(async (req, res) => {
     (req.headers.accept ?? "").includes("text/html")
   ) {
     return send(res, 302, "redirecting to secure origin", { Location: HTTPS_URL + req.url });
+  }
+
+  if (p === "/builds") {
+    try {
+      return buildsPage(res);
+    } catch (e) {
+      return send(res, 500, `builds listing failed: ${e.message}`);
+    }
   }
 
   if (p === "/api/fetch" && req.method === "POST") return apiFetch(req, res);
