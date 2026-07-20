@@ -63,6 +63,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:site" content="@atty303" />
         <meta name="twitter:creator" content="@atty303" />
+        {/* oswald: iOS Safari ignores user-scalable=no since iOS 10 — block native pinch
+            page zoom so only the canvas tree zoom handles the gesture */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static inline snippet, no user input
+          dangerouslySetInnerHTML={{
+            __html: `for(const t of["gesturestart","gesturechange","gestureend"])document.addEventListener(t,e=>e.preventDefault(),{passive:false});`,
+          }}
+        />
         <Meta />
         <Links />
       </head>

@@ -95,6 +95,11 @@ function buildsPage(res) {
 <title>OSWALD — Desktop Builds</title>
 <body style="font-family:sans-serif;background:#121212;color:#eee;padding:1rem">
 <h1>Desktop Builds</h1><p>PoB2 desktop บน Xolo — เปิดลิงก์แล้วกด Save ในแอปเพื่อเก็บลงเครื่องนี้</p>
+<!-- real HTML input = native iOS paste menu works (canvas text boxes have none) -->
+<form id="imp" style="margin:1rem 0"><input name="code" placeholder="วาง build code (poe2.ninja / PoB export)"
+ style="width:min(24rem,70%);padding:.5rem;background:#222;color:#eee;border:1px solid #555">
+<button style="padding:.5rem 1rem">Open</button></form>
+<script>imp.onsubmit=e=>{e.preventDefault();const c=imp.code.value.replace(/\\s+/g,"").replace(/\\+/g,"-").replace(/\\//g,"_");if(c)location="/poe2#build="+c}</script>
 <ul style="line-height:2">${items.join("")}</ul>`;
   send(res, 200, html, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
 }
