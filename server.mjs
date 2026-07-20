@@ -77,6 +77,33 @@ const HTTPS_URL = process.env.OSWALD_HTTPS_URL ?? "https://xolo.tail5ebed4.ts.ne
 const BUILDS_DIR =
   process.env.OSWALD_BUILDS_DIR ?? path.join(process.env.HOME, "PathOfBuildingCommunity-PoE2-Portable/Builds");
 
+// ponytail: only the two sites people actually paste (poe2.ninja, pobb.in) — add more
+// entries here (mirror packages/packer/.../Modules/BuildSiteTools.lua websiteList) if needed.
+const CODE_SITES = [
+  { match: /^https:\/\/pobb\.in\/(\S+)$/i, raw: id => `https://pobb.in/pob/${id}` },
+  { match: /^https:\/\/poe2?\.ninja\/(?:poe2\/)?pob\/(\S+)$/i, raw: id => `https://poe.ninja/poe2/pob/raw/${id}` },
+];
+
+// A pasted site URL (not a raw export code) makes PoB2's import go through an async
+// network fetch that our #build= hash loader never awaits — the app shows the (still
+// empty) build screen after one frame while the real import lands later or silently
+// fails, and tapping the tree then crashes on a nil build.spec. Resolve known site URLs
+// to their raw code here, server-side, so #build= always gets a code it can decode
+// synchronously — same as the desktop-sync links below.
+async function resolveBuildCode(input) {
+  const trimmed = input.trim();
+  for (const site of CODE_SITES) {
+    const m = trimmed.match(site.match);
+    if (m) {
+      const url = site.raw(m[1]);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`${url} -> HTTP ${r.status}`);
+      return (await r.text()).trim();
+    }
+  }
+  return trimmed.replace(/\s+/g, "");
+}
+
 function buildsPage(res) {
   const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const items = readdirSync(BUILDS_DIR, { recursive: true })
@@ -95,11 +122,12 @@ function buildsPage(res) {
 <title>OSWALD — Desktop Builds</title>
 <body style="font-family:sans-serif;background:#121212;color:#eee;padding:1rem">
 <h1>Desktop Builds</h1><p>PoB2 desktop บน Xolo — เปิดลิงก์แล้วกด Save ในแอปเพื่อเก็บลงเครื่องนี้</p>
-<!-- real HTML input = native iOS paste menu works (canvas text boxes have none) -->
-<form id="imp" style="margin:1rem 0"><input name="code" placeholder="วาง build code (poe2.ninja / PoB export)"
+<!-- real HTML input = native iOS paste menu works (canvas text boxes have none).
+     Plain GET form — server resolves site links to a raw code before opening. -->
+<form method="get" action="/builds/open" style="margin:1rem 0">
+<input name="code" placeholder="วาง build code หรือลิงก์ poe2.ninja/pobb.in"
  style="width:min(24rem,70%);padding:.5rem;background:#222;color:#eee;border:1px solid #555">
 <button style="padding:.5rem 1rem">Open</button></form>
-<script>imp.onsubmit=e=>{e.preventDefault();const c=imp.code.value.replace(/\\s+/g,"").replace(/\\+/g,"-").replace(/\\//g,"_");if(c)location="/poe2#build="+c}</script>
 <ul style="line-height:2">${items.join("")}</ul>`;
   send(res, 200, html, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" });
 }
@@ -124,6 +152,17 @@ const server = http.createServer(async (req, res) => {
       return buildsPage(res);
     } catch (e) {
       return send(res, 500, `builds listing failed: ${e.message}`);
+    }
+  }
+
+  if (p === "/builds/open") {
+    const input = url.searchParams.get("code") ?? "";
+    if (!input.trim()) return send(res, 400, "missing code");
+    try {
+      const code = await resolveBuildCode(input);
+      return send(res, 302, "redirecting", { Location: `/poe2#build=${code}` });
+    } catch (e) {
+      return send(res, 502, `couldn't resolve build source: ${e.message}`);
     }
   }
 
